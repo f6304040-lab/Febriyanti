@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Super Boba & Kopi Tycoon Premium</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Plus+Jakarta+Sans:wght@600;800&display=swap" rel="stylesheet">
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        body {
+            font-family: 'Fredoka', cursive;
+            transition: background 0.5s ease;
+            min-height: 100vh;
+        }
+
+        /* Background Themes */
+        .theme-street { background: linear-gradient(135deg, #1a1c2e 0%, #394168 100%); }
+        .theme-cafe { background: linear-gradient(135deg, #3d1e11 0%, #834d32 100%); }
+        .theme-neon { background: linear-gradient(135deg, #110022 0%, #440066 100%); }
+        .theme-luxury { background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%); }
+
+        /* Clicker Cup Animations */
+        .boba-cup {
+            transition: transform 0.08s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+        }
+        .boba-cup:active {
+            transform: scale(0.85) rotate(-6deg);
+        }
+
+        /* Floating + Money Text Animation */
+        @keyframes floatUp {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-100px) scale(1.4);
+            }
+        }
+        .floating-text {
+            position: absolute;
+            pointer-events: none;
+            animation: floatUp 0.8s ease-out forwards;
+            font-weight: 800;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+            z-index: 60;
+        }
+
+        /* Golden Flying Boba */
+        @keyframes flyAround {
+            0% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(120px, 80px) rotate(15deg); }
+            50% { transform: translate(-80px, 160px) rotate(-10deg); }
+            75% { transform: translate(100px, 40px) rotate(20deg); }
+            100% { transform: translate(0, 0) rotate(0deg); }
+        }
+        .golden-boba {
+            position: absolute;
+            animation: flyAround 6s infinite ease-in-out;
+            cursor: pointer;
+            z-index: 50;
+            filter: drop-shadow(0 0 15px #ffd700);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1.5px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .upgrade-btn {
+            transition: all 0.15s ease;
+        }
+        .upgrade-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.4);
+        }
+        .upgrade-btn:active:not(:disabled) {
+            transform: translateY(1px) scale(0.98);
+        }
+        .upgrade-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            filter: grayscale(90%);
+        }
+
+        /* Custom Scrollbar */
+        .custom-scroll::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scroll::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 10px;
+        }
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 10px;
+        }
+
+        /* Tab Buttons */
+        .tab-btn.active {
+            background: rgba(255, 215, 0, 0.25);
+            border-color: #f59e0b;
+            color: #fbbf24;
+        }
+
+        /* Pulse Animation */
+        @keyframes pulseGlow {
+            0%, 100% { opacity: 0.6; transform: scale(1); }
+            50% { opacity: 0.9; transform: scale(1.08); }
+        }
+        .pulse-glow {
+            animation: pulseGlow 2s infinite ease-in-out;
+        }
+    </style>
+</head>
+<body id="body-theme" class="theme-street text-white flex flex-col items-center justify-between p-3 sm:p-5 relative overflow-x-hidden min-h-screen">
+
+    <!-- FLOATING GOLDEN BOBA EVENT (BONUS) -->
+    <div id="golden-event" onclick="claimGoldenEvent()" class="golden-boba hidden text-4xl sm:text-5xl animate-bounce">
+        🌟🧋
+    </div>
+
+    <!-- TOP DISPLAY HUD HEADER -->
+    <header class="w-full max-w-md glass-card rounded-3xl p-3.5 text-center relative z-20 shadow-2xl">
+        <div class="flex justify-between items-center mb-1">
+            <span class="text-xs uppercase tracking-wider text-amber-300 font-extrabold flex items-center gap-1.5">
+                <i class="fa-solid fa-store"></i> <span id="store-title">Gerobak Boba Jalanan</span>
+            </span>
+            <div class="flex items-center gap-2">
+                <button onclick="AudioFX.toggleMute()" id="mute-btn" class="text-xs bg-white/10 hover:bg-white/20 text-white px-2 py-1 rounded-lg transition">
+                    <i class="fa-solid fa-volume-high"></i>
+                </button>
+                <button onclick="resetGame()" class="text-[10px] bg-red-500/30 hover:bg-red-500/50 text-red-200 px-2 py-1 rounded-lg border border-red-400/30">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- MONEY DISPLAY -->
+        <div id="money-display" class="text-3xl sm:text-4xl font-extrabold text-amber-300 drop-shadow-md tracking-wide my-0.5">
+            Rp 0
+        </div>
+
+        <!-- STATS COUNTER -->
+        <div class="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-white/15 text-xs font-semibold">
+            <div class="bg-black/20 p-1.5 rounded-xl text-emerald-300 flex items-center justify-center gap-1">
+                <i class="fa-solid fa-hand-pointer"></i> Per Klik: <b id="per-click-display">Rp 1.000</b>
+            </div>
+            <div class="bg-black/20 p-1.5 rounded-xl text-cyan-300 flex items-center justify-center gap-1">
+                <i class="fa-solid fa-robot"></i> Pasif: <b id="cps-display">Rp 0/dtk</b>
+            </div>
+        </div>
+
+        <!-- ACTIVE BOOST BANNER -->
+        <div id="boost-indicator" class="hidden mt-2 bg-gradient-to-r from-amber-500 to-red-500 text-stone-950 text-[11px] font-black py-1 px-3 rounded-full animate-pulse flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-bolt"></i> FRENZY MODE! PENDAPATAN x2 (<span id="boost-timer">10</span>s)
+        </div>
+    </header>
+
+    <!-- MAIN INTERACTIVE TAPPER & CUSTOMERS AREA -->
+    <main class="w-full max-w-md flex-1 flex flex-col items-center justify-center relative my-2 z-10">
+        
+        <!-- CUSTOMERS QUEUE (VISUAL) -->
+        <div class="w-full flex items-center justify-center gap-3 my-1">
+            <span class="text-xs text-amber-200 font-bold bg-black/30 px-2.5 py-0.5 rounded-full border border-amber-400/20">
+                <i class="fa-solid fa-users"></i> Antrean Pelanggan:
+            </span>
+            <div id="customer-queue" class="flex gap-2 text-2xl">
+                <!-- Dynamic customer emojis -->
+                <span>🧑‍💼</span><span>👧</span><span>👨‍🎨</span>
+            </div>
+        </div>
+
+        <!-- MAIN CLICKER TARGET (BOBA CUP) -->
+        <div id="clicker-target" class="boba-cup relative flex items-center justify-center select-none my-3 active:scale-90">
+            <!-- Glow Effect -->
+            <div id="cup-glow" class="absolute w-56 h-56 bg-amber-400/20 rounded-full blur-2xl pointer-events-none pulse-glow"></div>
+            
+            <!-- Cup Emoji Icon -->
+            <div id="cup-emoji" class="text-[110px] sm:text-[140px] drop-shadow-[0_15px_25px_rgba(0,0,0,0.6)] transition-all">
+                🥤
+            </div>
+        </div>
+
+        <!-- BOOST BUTTON & LEVEL BADGE -->
+        <div class="flex items-center gap-2">
+            <span id="level-badge" class="bg-gradient-to-r from-amber-400 to-orange-500 text-stone-950 px-4 py-1.5 rounded-full text-xs font-black shadow-lg">
+                LEVEL 1: GEROBAK BOBA 🥤
+            </span>
+
+            <button id="btn-frenzy-boost" onclick="activateFrenzyBoost()" class="bg-gradient-to-r from-red-500 to-pink-500 text-white px-3 py-1.5 rounded-full text-xs font-black shadow-lg hover:scale-105 active:scale-95 transition flex items-center gap-1 border border-pink-300/40">
+                <i class="fa-solid fa-fire"></i> BOOST x2
+            </button>
+        </div>
+    </main>
+
+    <!-- UPGRADES, QUESTS & THEMES PANEL (TABS) -->
+    <section class="w-full max-w-md glass-card rounded-3xl p-3.5 z-20 space-y-2.5">
+        
+        <!-- NAVIGATION TABS -->
+        <div class="flex gap-1.5 bg-black/30 p-1 rounded-2xl border border-white/10 text-xs font-bold">
+            <button onclick="switchTab('upgrades')" id="tab-upgrades" class="tab-btn active flex-1 py-1.5 rounded-xl transition flex items-center justify-center gap-1 border border-transparent">
+                <i class="fa-solid fa-cart-shopping"></i> Upgrade
+            </button>
+            <button onclick="switchTab('quests')" id="tab-quests" class="tab-btn flex-1 py-1.5 rounded-xl transition flex items-center justify-center gap-1 border border-transparent">
+                <i class="fa-solid fa-list-check"></i> Misi <span id="quest-badge" class="bg-amber-500 text-stone-950 px-1.5 py-0.2 rounded-full text-[10px]">3</span>
+            </button>
+            <button onclick="switchTab('themes')" id="tab-themes" class="tab-btn flex-1 py-1.5 rounded-xl transition flex items-center justify-center gap-1 border border-transparent">
+                <i class="fa-solid fa-paint-roller"></i> Dekor
+            </button>
+        </div>
+
+        <!-- TAB CONTENT 1: UPGRADES -->
+        <div id="content-upgrades" class="space-y-2 max-h-[210px] sm:max-h-[240px] overflow-y-auto custom-scroll pr-1">
+            
+            <!-- UPGRADE 1: Resep Minuman (Tambah Hasil Klik) -->
+            <div class="bg-black/30 p-2.5 rounded-2xl flex items-center justify-between border border-white/10">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-400 flex items-center justify-center text-lg shrink-0">
+                        ✨
+                    </div>
+                    <div>
+                        <div class="font-bold text-xs text-white">Racikan Rasa Lezat</div>
+                        <div class="text-[10px] text-amber-200">+Rp <span id="add-click">1.500</span> / Klik (Lvl <span id="lvl-click">1</span>)</div>
+                    </div>
+                </div>
+                <button id="btn-up-click" onclick="buyClickUpgrade()" class="upgrade-btn bg-gradient-to-r from-amber-400 to-orange-500 text-stone-950 font-bold text-xs py-1.5 px-3 rounded-xl shadow-lg shrink-0">
+                    <span id="cost-click">Rp 15.000</span>
+                </button>
+            </div>
+
+            <!-- UPGRADE 2: Rekrut Barista (Pasif Per Detik) -->
+            <div class="bg-black/30 p-2.5 rounded-2xl flex items-center justify-between border border-white/10">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-400 flex items-center justify-center text-lg shrink-0">
+                        🧑‍🍳
+                    </div>
+                    <div>
+                        <div class="font-bold text-xs text-white">Rekrut Barista Cepat</div>
+                        <div class="text-[10px] text-cyan-200">+Rp <span id="add-auto">2.500</span> / Detik (Lvl <span id="lvl-auto">0</span>)</div>
+                    </div>
+                </div>
+                <button id="btn-up-auto" onclick="buyAutoUpgrade()" class="upgrade-btn bg-gradient-to-r from-cyan-400 to-blue-500 text-stone-950 font-bold text-xs py-1.5 px-3 rounded-xl shadow-lg shrink-0">
+                    <span id="cost-auto">Rp 50.000</span>
+                </button>
+            </div>
+
+            <!-- UPGRADE 3: Mesin Espresso Canggih -->
+            <div class="bg-black/30 p-2.5 rounded-2xl flex items-center justify-between border border-white/10">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-400 flex items-center justify-center text-lg shrink-0">
+                        ⚡
+                    </div>
+                    <div>
+                        <div class="font-bold text-xs text-white">Mesin Espresso Espresso</div>
+                        <div class="text-[10px] text-purple-200">+Rp 18.000 / Detik (Lvl <span id="lvl-speed">0</span>)</div>
+                    </div>
+                </div>
+                <button id="btn-up-speed" onclick="buySpeedUpgrade()" class="upgrade-btn bg-gradient-to-r from-purple-400 to-pink-500 text-stone-950 font-bold text-xs py-1.5 px-3 rounded-xl shadow-lg shrink-0">
+                    <span id="cost-speed">Rp 250.000</span>
+                </button>
+            </div>
+
+            <!-- UPGRADE 4: Buka Cabang Mall -->
+            <div class="bg-black/30 p-2.5 rounded-2xl flex items-center justify-between border border-white/10">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-400 flex items-center justify-center text-lg shrink-0">
+                        🏰
+                    </div>
+                    <div>
+                        <div class="font-bold text-xs text-white">Buka Outlet Cafe Mall</div>
+                        <div class="text-[10px] text-emerald-200">+Rp 120.000 / Detik (Lvl <span id="lvl-cafe">0</span>)</div>
+                    </div>
+                </div>
+                <button id="btn-up-cafe" onclick="buyCafeUpgrade()" class="upgrade-btn bg-gradient-to-r from-emerald-400 to-teal-500 text-stone-950 font-bold text-xs py-1.5 px-3 rounded-xl shadow-lg shrink-0">
+                    <span id="cost-cafe">Rp 1.000.000</span>
+                </button>
+            </div>
+
+        </div>
+
+        <!-- TAB CONTENT 2: QUESTS (MISI HARIAN) -->
+        <div id="content-quests" class="hidden space-y-2 max-h-[210px] sm:max-h-[240px] overflow-y-auto custom-scroll pr-1">
+            
+            <div class="bg-black/30 p-2.5 rounded-2xl flex items-center justify-between border border-white/10">
+                <div>
+                    <div class="font-bold text-xs text-white">Pembuat Boba Pemula</div>
+                    <div class="text-[10px] text-amber-200">Ketuk Cangkir 50 Kali (<span id="q1-progress">0</span>/50)</div>
+                </div>
+                <button id="btn-q1" onclick="claimQuest(1)" disabled class="upgrade-btn bg-amber-400 text-stone-950 font-bold text-xs py-1.5 px-3 rounded-xl">
+                    +Rp 10.000
+                </button>
+            </div>
+
+            <div class="bg-black/30 p-2.5 rounded-2xl flex items-center justify-between border border-white/10">
+                <div>
+                    <div class="font-bold text-xs text-white">Bos Barista</div>
+                    <div class="text-[10px] text-amber-200">Rekrut Barista hingga Level 3 (<span id="q2-progress">0</span>/3)</div>
+                </div>
+                <button id="btn-q2" onclick="claimQuest(2)" disabled class="upgrade-btn bg-amber-400 text-stone-950 font-bold text-xs py-1.5 px-3 rounded-xl">
+                    +Rp 50.000
+                </button>
+            </div>
+
+            <div class="bg-black/30 p-2.5 rounded-2xl flex items-center justify-between border border-white/10">
+                <div>
+                    <div class="font-bold text-xs text-white">Jutawan Boba</div>
+                    <div class="text-[10px] text-amber-200">Kumpulkan Total Rp 500.000</div>
+                </div>
+                <button id="btn-q3" onclick="claimQuest(3)" disabled class="upgrade-btn bg-amber-400 text-stone-950 font-bold text-xs py-1.5 px-3 rounded-xl">
+                    +Rp 100.000
+                </button>
+            </div>
+
+        </div>
+
+        <!-- TAB CONTENT 3: THEMES (DEKORASI) -->
+        <div id="content-themes" class="hidden space-y-2 max-h-[210px] sm:max-h-[240px] overflow-y-auto custom-scroll pr-1">
+            
+            <div class="bg-black/30 p-2.5 rounded-2xl flex items-center justify-between border border-white/10">
+                <div class="flex items-center gap-2">
+                    <div class="text-xl">🌙</div>
+                    <div>
+                        <div class="font-bold text-xs text-white">Gerobak Malam Jalanan</div>
+                        <div class="text-[10px] text-gray-300">Tema Default</div>
+                    </div>
+                </div>
+                <button onclick="setTheme('street')" class="bg-emerald-500 text-stone-950 font-bold text-xs py-1.5 px-3 rounded-xl">
+                    Pakai
+                </button>
+            </div>
+
+            <div class="bg-black/30 p-2.5 rounded-2xl flex items-center justify-between border border-white/10">
+                <div class="flex items-center gap-2">
+                    <div class="text-xl">☕</div>
+                    <div>
+                        <div class="font-bold text-xs text-white">Kafe Kayu Cozy</div>
+                        <div class="text-[10px] text-amber-300">Syarat: Lvl Auto >= 2</div>
+                    </div>
+                </div>
+                <button id="btn-theme-cafe" onclick="setTheme('cafe')" class="bg-amber-400 text-stone-950 font-bold text-xs py-1.5 px-3 rounded-xl">
+                    Pakai
+                </button>
+            </div>
+
+            <div class="bg-black/30 p-2.5 rounded-2xl flex items-center justify-between border border-white/10">
+                <div class="flex items-center gap-2">
+                    <div class="text-xl">🏙️</div>
+                    <div>
+                        <div class="font-bold text-xs text-white">Luxury Cyber Lounge</div>
+                        <div class="text-[10px] text-purple-300">Syarat: Lvl Cafe >= 1</div>
+                    </div>
+                </div>
+                <button id="btn-theme-luxury" onclick="setTheme('luxury')" class="bg-purple-400 text-stone-950 font-bold text-xs py-1.5 px-3 rounded-xl">
+                    Pakai
+                </button>
+            </div>
+
+        </div>
+
+    </section>
+
+    <!-- GAME ENGINE SCRIPT -->
+    <script>
+        // WEB AUDIO SYNTHESIZER FOR SOUND EFFECTS
+        const AudioFX = {
+            ctx: null,
+            muted: false,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            playPop() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                const freq = 420 + Math.random() * 280;
+                osc.frequency.setValueAtTime(freq, now);
+                osc.frequency.exponentialRampToValueAtTime(freq + 220, now + 0.08);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(now + 0.08);
+            },
+            playBuy() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(523.25, now); 
+                osc.frequency.exponentialRampToValueAtTime(1046.50, now + 0.15); 
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(now + 0.15);
+            },
+            playGolden() {
+                if (this.muted) return;
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, now);
+                osc.frequency.exponentialRampToValueAtTime(1760, now + 0.25);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(now + 0.25);
+            },
+            toggleMute() {
+                this.muted = !this.muted;
+                const btn = document.getElementById('mute-btn');
+                btn.innerHTML = this.muted ? `<i class="fa-solid fa-volume-xmark text-rose-300"></i>` : `<i class="fa-solid fa-volume-high"></i>`;
+            }
+        };
+
+        // DEFAULT STATE
+        const defaultState = {
+            money: 0,
+            totalEarned: 0,
+            totalClicks: 0,
+            perClick: 1000,
+            cps: 0,
+            boostMultiplier: 1,
+            levels: { click: 1, auto: 0, speed: 0, cafe: 0 },
+            costs: { click: 15000, auto: 50000, speed: 250000, cafe: 1000000 },
+            quests: { q1: false, q2: false, q3: false },
+            theme: 'street'
+        };
+
+        let gameState = JSON.parse(JSON.stringify(defaultState));
+        let boostTimer = 0;
+
+        // LOAD GAME
+        function loadGame() {
+            const saved = localStorage.getItem('super_boba_save_v2');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    gameState = { ...defaultState, ...parsed };
+                } catch(e) {
+                    console.error("Save load error", e);
+                }
+            }
+        }
+
+        // SAVE GAME
+        function saveGame() {
+            localStorage.setItem('super_boba_save_v2', JSON.stringify(gameState));
+        }
+
+        // RESET GAME
+        function resetGame() {
+            if (confirm("Apakah Anda yakin ingin mereset seluruh progres warung dari awal?")) {
+                localStorage.removeItem('super_boba_save_v2');
+                gameState = JSON.parse(JSON.stringify(defaultState));
+                setTheme('street');
+                updateUI();
+            }
+        }
+
+        // INIT ON LOAD
+        window.onload = function() {
+            loadGame();
+
+            const target = document.getElementById('clicker-target');
+            target.addEventListener('pointerdown', (e) => {
+                e.preventDefault();
+                tapBobaCup(e);
+            });
+
+            // Auto Income Loop (100ms)
+            setInterval(autoIncomeLoop, 100);
+
+            // Spawn Golden Event randomly (Every 25 seconds)
+            setInterval(triggerRandomGoldenEvent, 25000);
+
+            // Customers Refresh Loop
+            setInterval(updateCustomersQueue, 4000);
+
+            // Auto Save
+            setInterval(saveGame, 3000);
+
+            setTheme(gameState.theme || 'street');
+            updateUI();
+        };
+
+        // TAB SWITCHER
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+
+            document.getElementById('content-upgrades').classList.add('hidden');
+            document.getElementById('content-quests').classList.add('hidden');
+            document.getElementById('content-themes').classList.add('hidden');
+
+            document.getElementById(`content-${tab}`).classList.remove('hidden');
+        }
+
+        // TAP / CLICK MECHANIC
+        function tapBobaCup(e) {
+            const gained = gameState.perClick * gameState.boostMultiplier;
+            gameState.money += gained;
+            gameState.totalEarned += gained;
+            gameState.totalClicks++;
+
+            AudioFX.playPop();
+
+            const x = e.clientX || window.innerWidth / 2;
+            const y = e.clientY || window.innerHeight / 2;
+            createFloatingText(x, y, `+Rp ${formatNumber(gained)}`);
+
+            updateQuestsProgress();
+            updateUI();
+        }
+
+        // FLOATING TEXT EFFECT
+        function createFloatingText(x, y, text) {
+            const el = document.createElement('div');
+            el.className = 'floating-text text-amber-300 font-black text-xl sm:text-2xl';
+            el.textContent = text;
+            
+            const offsetX = (Math.random() - 0.5) * 50;
+            el.style.left = `${x + offsetX}px`;
+            el.style.top = `${y - 35}px`;
+
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 800);
+        }
+
+        // AUTO INCOME LOOP (PER 100ms)
+        function autoIncomeLoop() {
+            if (gameState.cps > 0) {
+                const gained = (gameState.cps * gameState.boostMultiplier) / 10;
+                gameState.money += gained;
+                gameState.totalEarned += gained;
+                updateQuestsProgress();
+                updateUI();
+            }
+
+            // Handle Boost Timer
+            if (boostTimer > 0) {
+                boostTimer -= 0.1;
+                document.getElementById('boost-timer').textContent = Math.ceil(boostTimer);
+                if (boostTimer <= 0) {
+                    gameState.boostMultiplier = 1;
+                    document.getElementById('boost-indicator').classList.add('hidden');
+                }
+            }
+        }
+
+        // FRENZY BOOST POWER-UP
+        function activateFrenzyBoost() {
+            if (boostTimer > 0) return;
+            gameState.boostMultiplier = 2;
+            boostTimer = 15; // 15 Seconds
+            document.getElementById('boost-indicator').classList.remove('hidden');
+            AudioFX.playGolden();
+        }
+
+        // RANDOM GOLDEN BOBA EVENT
+        function triggerRandomGoldenEvent() {
+            if (Math.random() < 0.6) {
+                const el = document.getElementById('golden-event');
+                el.style.left = `${Math.random() * 70 + 15}%`;
+                el.style.top = `${Math.random() * 40 + 20}%`;
+                el.classList.remove('hidden');
+
+                setTimeout(() => el.classList.add('hidden'), 8000);
+            }
+        }
+
+        function claimGoldenEvent() {
+            const el = document.getElementById('golden-event');
+            el.classList.add('hidden');
+
+            const bonus = Math.max(25000, gameState.perClick * 20);
+            gameState.money += bonus;
+            gameState.totalEarned += bonus;
+
+            AudioFX.playGolden();
+
+            if (typeof confetti === 'function') {
+                confetti({ particleCount: 70, spread: 60, origin: { y: 0.5 } });
+            }
+
+            alert(`🌟 SELAMAT! Anda mendapatkan Bonus Boba Emas +Rp ${formatNumber(bonus)}!`);
+            updateUI();
+        }
+
+        // UPGRADE PURCHASES
+        function buyClickUpgrade() {
+            if (gameState.money >= gameState.costs.click) {
+                gameState.money -= gameState.costs.click;
+                gameState.levels.click++;
+
+                // Per Klik bertambah nyata
+                gameState.perClick = Math.floor(1000 + (gameState.levels.click - 1) * 1500);
+                gameState.costs.click = Math.floor(gameState.costs.click * 1.55);
+
+                AudioFX.playBuy();
+                saveGame();
+                updateUI();
+            }
+        }
+
+        function buyAutoUpgrade() {
+            if (gameState.money >= gameState.costs.auto) {
+                gameState.money -= gameState.costs.auto;
+                gameState.levels.auto++;
+
+                gameState.cps += 2500;
+                gameState.costs.auto = Math.floor(gameState.costs.auto * 1.6);
+
+                AudioFX.playBuy();
+                saveGame();
+                updateUI();
+            }
+        }
+
+        function buySpeedUpgrade() {
+            if (gameState.money >= gameState.costs.speed) {
+                gameState.money -= gameState.costs.speed;
+                gameState.levels.speed++;
+
+                gameState.cps += 18000;
+                gameState.costs.speed = Math.floor(gameState.costs.speed * 1.7);
+
+                AudioFX.playBuy();
+                saveGame();
+                updateUI();
+            }
+        }
+
+        function buyCafeUpgrade() {
+            if (gameState.money >= gameState.costs.cafe) {
+                gameState.money -= gameState.costs.cafe;
+                gameState.levels.cafe++;
+
+                gameState.cps += 120000;
+                gameState.costs.cafe = Math.floor(gameState.costs.cafe * 1.85);
+
+                AudioFX.playBuy();
+                if (typeof confetti === 'function') {
+                    confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
+                }
+                saveGame();
+                updateUI();
+            }
+        }
+
+        // QUEST SYSTEM
+        function updateQuestsProgress() {
+            document.getElementById('q1-progress').textContent = gameState.totalClicks;
+            document.getElementById('q2-progress').textContent = gameState.levels.auto;
+
+            document.getElementById('btn-q1').disabled = gameState.quests.q1 || gameState.totalClicks < 50;
+            if (gameState.quests.q1) document.getElementById('btn-q1').textContent = "Selesai ✓";
+
+            document.getElementById('btn-q2').disabled = gameState.quests.q2 || gameState.levels.auto < 3;
+            if (gameState.quests.q2) document.getElementById('btn-q2').textContent = "Selesai ✓";
+
+            document.getElementById('btn-q3').disabled = gameState.quests.q3 || gameState.totalEarned < 500000;
+            if (gameState.quests.q3) document.getElementById('btn-q3').textContent = "Selesai ✓";
+        }
+
+        function claimQuest(num) {
+            if (num === 1 && !gameState.quests.q1 && gameState.totalClicks >= 50) {
+                gameState.quests.q1 = true;
+                gameState.money += 10000;
+            } else if (num === 2 && !gameState.quests.q2 && gameState.levels.auto >= 3) {
+                gameState.quests.q2 = true;
+                gameState.money += 50000;
+            } else if (num === 3 && !gameState.quests.q3 && gameState.totalEarned >= 500000) {
+                gameState.quests.q3 = true;
+                gameState.money += 100000;
+            }
+            AudioFX.playBuy();
+            saveGame();
+            updateUI();
+        }
+
+        // THEME SYSTEM
+        function setTheme(theme) {
+            gameState.theme = theme;
+            const body = document.getElementById('body-theme');
+            body.className = `theme-${theme} text-white flex flex-col items-center justify-between p-3 sm:p-5 relative overflow-x-hidden min-h-screen`;
+            saveGame();
+        }
+
+        // DYNAMIC CUSTOMERS QUEUE
+        function updateCustomersQueue() {
+            const emojis = ['🧑‍💼', '👧', '👨‍🎨', '👵', '🧑‍🚀', '👮‍♂️', '🦸‍♀️', '👩‍🍳'];
+            const count = Math.floor(Math.random() * 3) + 2;
+            let html = '';
+            for (let i = 0; i < count; i++) {
+                const rand = emojis[Math.floor(Math.random() * emojis.length)];
+                html += `<span>${rand}</span>`;
+            }
+            document.getElementById('customer-queue').innerHTML = html;
+        }
+
+        // RENDER UI
+        function updateUI() {
+            document.getElementById('money-display').textContent = `Rp ${formatNumber(Math.floor(gameState.money))}`;
+            document.getElementById('per-click-display').textContent = `Rp ${formatNumber(gameState.perClick * gameState.boostMultiplier)}`;
+            document.getElementById('cps-display').textContent = `Rp ${formatNumber(gameState.cps * gameState.boostMultiplier)}/dtk`;
+
+            // Upgrade texts & Costs
+            document.getElementById('lvl-click').textContent = gameState.levels.click;
+            document.getElementById('cost-click').textContent = `Rp ${formatNumber(gameState.costs.click)}`;
+
+            document.getElementById('lvl-auto').textContent = gameState.levels.auto;
+            document.getElementById('cost-auto').textContent = `Rp ${formatNumber(gameState.costs.auto)}`;
+
+            document.getElementById('lvl-speed').textContent = gameState.levels.speed;
+            document.getElementById('cost-speed').textContent = `Rp ${formatNumber(gameState.costs.speed)}`;
+
+            document.getElementById('lvl-cafe').textContent = gameState.levels.cafe;
+            document.getElementById('cost-cafe').textContent = `Rp ${formatNumber(gameState.costs.cafe)}`;
+
+            // Enable / Disable buttons
+            document.getElementById('btn-up-click').disabled = gameState.money < gameState.costs.click;
+            document.getElementById('btn-up-auto').disabled = gameState.money < gameState.costs.auto;
+            document.getElementById('btn-up-speed').disabled = gameState.money < gameState.costs.speed;
+            document.getElementById('btn-up-cafe').disabled = gameState.money < gameState.costs.cafe;
+
+            // Store level branding
+            const levelBadge = document.getElementById('level-badge');
+            const cupEmoji = document.getElementById('cup-emoji');
+            const storeTitle = document.getElementById('store-title');
+
+            if (gameState.levels.cafe > 0) {
+                levelBadge.textContent = "LEVEL 4: SULTAN KAFE MEWAH MALL 👑";
+                cupEmoji.textContent = "🍹";
+                storeTitle.textContent = "Sultan Boba & Lounge";
+            } else if (gameState.levels.speed > 0) {
+                levelBadge.textContent = "LEVEL 3: CAFE MODERN AESTHETIC ☕";
+                cupEmoji.textContent = "☕";
+                storeTitle.textContent = "Modern Coffee & Tea";
+            } else if (gameState.levels.auto > 0) {
+                levelBadge.textContent = "LEVEL 2: WARUNG BOBA RAMAI 🧋";
+                cupEmoji.textContent = "🧋";
+                storeTitle.textContent = "Kedai Boba Hits";
+            } else {
+                levelBadge.textContent = "LEVEL 1: GEROBAK BOBA 🥤";
+                cupEmoji.textContent = "🥤";
+                storeTitle.textContent = "Gerobak Boba Jalanan";
+            }
+
+            updateQuestsProgress();
+        }
+
+        function formatNumber(num) {
+            return Math.floor(num).toLocaleString('id-ID');
+        }
+    </script>
+</body>
+</html>
